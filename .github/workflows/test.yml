@@ -18,7 +18,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup Go ${{ matrix.go }}
         uses: actions/setup-go@v4
@@ -30,6 +30,7 @@ jobs:
         run: go test -race -cover -coverprofile=coverage -covermode=atomic -v ./...
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v5
         with:
-          files: ./coverage
+          files: coverage
+          token: ${{ secrets.CODECOV_TOKEN }}
