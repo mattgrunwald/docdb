@@ -16,6 +16,7 @@ type IDocDB interface {
 	FindMany(count int, offset int, orderCol col.DocCol, order order.Order) ([]*Doc, error)
 	FindAll(orderCol col.DocCol, order order.Order) ([]*Doc, error)
 	Delete(id int) error
+	Close() error
 }
 
 type DocDB struct {

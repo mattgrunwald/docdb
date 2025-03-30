@@ -1,71 +1,41 @@
-package docdb
+package docdb_test
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/mattgrunwald/docdb"
 	"github.com/mattgrunwald/docdb/col"
 	"github.com/mattgrunwald/docdb/order"
 	"github.com/stretchr/testify/assert"
 )
 
-func init() {
-	os.RemoveAll("test_db_files")
-	os.Remove("test.db")
-}
-
-func getWd(t *testing.T) string {
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Fatal("failed to get working directory")
-	}
-	return wd
-}
-func getTestDbFile(t *testing.T, id string) string {
-	return filepath.Join(getWd(t), fmt.Sprintf("%s_test.db", id))
-}
-
-func getTestDir(t *testing.T, id string) string {
-	return filepath.Join(getWd(t), fmt.Sprintf("%s_test_db_files", id))
-}
-
 func openTestFile(t *testing.T, fileName string) *os.File {
-	file, err := os.Open(filepath.Clean(filepath.Join(getWd(t), "test_files", fileName)))
+	t.Helper()
+	file, err := os.Open(filepath.Clean(filepath.Join("test_files", fileName)))
 	if err != nil {
 		t.Fatalf("failed to open test file %s\n", fileName)
 	}
 	return file
 }
 
-func setUpTest(t *testing.T) (*DocDB, func(t *testing.T), string) {
-	id := uuid.New().String()
-	dbFile := getTestDbFile(t, id)
-	dir := getTestDir(t, id)
-	db := new(dbFile, dir)
-	tearDownTest := makeTearDownTest(id, db, dbFile, dir)
-	return db, tearDownTest, id
-}
-
-func makeTearDownTest(id string, db *DocDB, dbFile, dir string) func(t *testing.T) {
-	return func(t *testing.T) {
-		err := db.db.Close()
+func setUpTest(t *testing.T) (docdb.IDocDB, string) {
+	t.Helper()
+	dbDir := t.TempDir()
+	dbFile, _ := os.CreateTemp(dbDir, "")
+	defer dbFile.Close()
+	fileDir := t.TempDir()
+	db := docdb.New(dbFile.Name(), fileDir)
+	t.Cleanup(func() {
+		err := db.Close()
 		if err != nil {
 			t.Logf("Failed to close DB: %q", err)
 		}
-		err = os.RemoveAll(dir)
-		if err != nil {
-			t.Logf("Failed to cleanup %s: %q", dir, err)
-		}
-		err = os.Remove(dbFile)
-		if err != nil {
-			t.Logf("Failed to cleanup %s: %q", dbFile, err)
-		}
-	}
+	})
+	return db, fileDir
 }
 
 func compareTimes(t *testing.T, expected time.Time, received time.Time) {
@@ -77,7 +47,7 @@ func compareTimes(t *testing.T, expected time.Time, received time.Time) {
 	assert.Equal(t, expected.Second(), received.Second())
 }
 
-func compareDocs(t *testing.T, expected *Doc, received *Doc) {
+func compareDocs(t *testing.T, expected *docdb.Doc, received *docdb.Doc) {
 	assert.Equal(t, expected.ID, received.ID)
 	assert.Equal(t, expected.Name, received.Name)
 	compareTimes(t, expected.CreatedAt.UTC(), received.CreatedAt.UTC())
@@ -86,8 +56,7 @@ func compareDocs(t *testing.T, expected *Doc, received *Doc) {
 
 func Test_Insert(t *testing.T) {
 	// setup
-	db, tearDownTest, _ := setUpTest(t)
-	defer tearDownTest(t)
+	db, _ := setUpTest(t)
 
 	file := openTestFile(t, "a.txt")
 	defer file.Close()
@@ -108,8 +77,7 @@ func Test_Insert(t *testing.T) {
 
 func Test_Update(t *testing.T) {
 	// setup
-	db, tearDownTest, testID := setUpTest(t)
-	defer tearDownTest(t)
+	db, filesDir := setUpTest(t)
 	fileA := openTestFile(t, "a.txt")
 	defer fileA.Close()
 	fileB := openTestFile(t, "b.txt")
@@ -131,20 +99,12 @@ func Test_Update(t *testing.T) {
 	updateTime := time.Now()
 
 	// checks
-	rows, _ := db.db.Query("SELECT id, name, created_at, updated_at FROM docs")
-	defer rows.Close()
-	rows.Next()
-	err = rows.Scan(&doc.ID, &doc.Name, &doc.CreatedAt, &doc.UpdatedAt)
-	if err != nil {
-		t.Logf("Querying DB failed: %q\n", err)
-		t.Fail()
-	}
 	assert.Equal(t, 1, doc.ID)
 	assert.Equal(t, "b.txt", doc.Name)
 	compareTimes(t, insertTime.UTC(), doc.CreatedAt)
 	compareTimes(t, updateTime.UTC(), doc.UpdatedAt)
 
-	files, _ := os.ReadDir(filepath.Join(getTestDir(t, testID), strconv.Itoa(doc.ID)))
+	files, _ := os.ReadDir(filepath.Join(filesDir, strconv.Itoa(doc.ID)))
 	assert.Equal(t, 1, len(files))
 	assert.Equal(t, "b.txt", filepath.Base(files[0].Name()))
 }
@@ -152,8 +112,7 @@ func Test_Update(t *testing.T) {
 func Test_findOne(t *testing.T) {
 	t.Run("Empty slice when there are no results", func(t *testing.T) {
 		// setup
-		db, tearDownTest, _ := setUpTest(t)
-		defer tearDownTest(t)
+		db, _ := setUpTest(t)
 
 		// test case
 		doc, err := db.FindOne(0)
@@ -165,8 +124,7 @@ func Test_findOne(t *testing.T) {
 
 	t.Run("Result is complete correct", func(t *testing.T) {
 		// setup
-		db, tearDownTest, _ := setUpTest(t)
-		defer tearDownTest(t)
+		db, _ := setUpTest(t)
 		fileA := openTestFile(t, "a.txt")
 		defer fileA.Close()
 		_, _ = db.Insert(fileA)
@@ -189,8 +147,7 @@ func Test_findOne(t *testing.T) {
 func Test_FindMany(t *testing.T) {
 	t.Run("Empty slice when there are no results", func(t *testing.T) {
 		// setup
-		db, tearDownTest, _ := setUpTest(t)
-		defer tearDownTest(t)
+		db, _ := setUpTest(t)
 
 		docs, err := db.FindMany(2, 0, col.UpdatedAt, order.ASC)
 		if err != nil {
@@ -202,8 +159,7 @@ func Test_FindMany(t *testing.T) {
 
 	t.Run("results are complete and in correct order", func(t *testing.T) {
 		// setup
-		db, tearDownTest, _ := setUpTest(t)
-		defer tearDownTest(t)
+		db, _ := setUpTest(t)
 		fileA := openTestFile(t, "a.txt")
 		fileB := openTestFile(t, "b.txt")
 		fileC := openTestFile(t, "c.txt")
@@ -246,8 +202,7 @@ func Test_FindMany(t *testing.T) {
 func Test_FindAll(t *testing.T) {
 	t.Run("Empty slice when there are no results", func(t *testing.T) {
 		// setup
-		db, tearDownTest, _ := setUpTest(t)
-		defer tearDownTest(t)
+		db, _ := setUpTest(t)
 
 		//test case
 		docs, err := db.FindAll(col.CreatedAt, order.ASC)
@@ -262,8 +217,7 @@ func Test_FindAll(t *testing.T) {
 
 	t.Run("results are complete and in correct order ASC", func(t *testing.T) {
 		// setup
-		db, tearDownTest, _ := setUpTest(t)
-		defer tearDownTest(t)
+		db, _ := setUpTest(t)
 		fileA := openTestFile(t, "a.txt")
 		fileB := openTestFile(t, "b.txt")
 		fileC := openTestFile(t, "c.txt")
@@ -309,8 +263,7 @@ func Test_FindAll(t *testing.T) {
 
 func Test_Delete(t *testing.T) {
 	// setup
-	db, tearDownTest, _ := setUpTest(t)
-	defer tearDownTest(t)
+	db, _ := setUpTest(t)
 	fileA := openTestFile(t, "a.txt")
 	fileB := openTestFile(t, "b.txt")
 	defer fileA.Close()

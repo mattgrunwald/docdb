@@ -24,7 +24,7 @@ func (d *Doc) dirPath() string {
 }
 
 // Open Doc as a file
-func (d *Doc) Open(doc *Doc) (*os.File, error) {
+func (d *Doc) Open() (*os.File, error) {
 	return os.Open(d.filePath())
 }
 
@@ -60,4 +60,8 @@ func (d *DocDB) find(sqlStmt string, args ...any) ([]*Doc, error) {
 		docs = append(docs, &doc)
 	}
 	return docs, nil
+}
+
+func (d *DocDB) Close() error {
+	return d.db.Close()
 }

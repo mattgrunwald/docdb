@@ -11,10 +11,6 @@ import (
 // Creates a new connection to a local database, initializing the database and
 // the directory to store files if they do not already exist.
 func New(dbPath string, filesPath string) IDocDB {
-	return new(dbPath, filesPath)
-}
-
-func new(dbPath string, filesPath string) *DocDB {
 	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
 		log.Fatal(err)
