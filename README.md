@@ -16,7 +16,7 @@ Docdb stores files in a directory outside of the DB file so that these stored fi
 
 ## Using `Doc`s
 
-All operations except for `Delete` return a `Doc`. To open a the file represented by a `Doc`, use `Open`.
+All operations except for `Delete` return one or more `Doc`s. To open a the file represented by a `Doc`, use `Open`.
 
 ```go
 file, err := doc.Open()
@@ -32,7 +32,7 @@ file, err := doc.Open()
 // insert a file
 doc, err := db.Insert(myFile)
 // whoops, we need to use a different file
-updatedDoc, err := db.Update(myFile.ID, myUpdatedFile)
+updatedDoc, err := db.Update(doc.ID, myUpdatedFile)
 ```
 
 ### Find One
@@ -58,7 +58,7 @@ Retrieve all `Doc`s in a specific order
 
 ```go
 // gets 5 documents with no offset ordered by creation date in descending order.
-docs, err := db.FindMany(col.CreatedAt, order.DESC)
+docs, err := db.FindAll(col.CreatedAt, order.DESC)
 ```
 
 ### Delete
