@@ -39,7 +39,7 @@ func new(dbPath string, filesPath string) *DocDB {
 	}
 
 	if _, err := os.Stat(filesPath); os.IsNotExist(err) {
-		err = os.Mkdir(filesPath, os.ModePerm)
+		err = os.Mkdir(filesPath, 0750)
 		if err != nil {
 			log.Fatalf("Error creating files folder: %q\n", err)
 		}

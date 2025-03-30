@@ -30,7 +30,7 @@ func (d *Doc) Open(doc *Doc) (*os.File, error) {
 
 // Copies `file` to `<filesPath>/<id>/<filename>`
 func (d *Doc) writeFile(file *os.File) error {
-	err := os.Mkdir(d.dirPath(), os.ModePerm)
+	err := os.Mkdir(d.dirPath(), 0750)
 	if err != nil {
 		return err
 	}
@@ -38,13 +38,14 @@ func (d *Doc) writeFile(file *os.File) error {
 	if err != nil {
 		return err
 	}
+	defer dest.Close()
 	_, err = io.Copy(dest, file)
 	return err
 }
 
 // Executes a `query` and parses the result as a slice of `Doc`s
-func (d *DocDB) find(sqlStmt string) ([]*Doc, error) {
-	rows, err := d.db.Query(sqlStmt)
+func (d *DocDB) find(sqlStmt string, args ...any) ([]*Doc, error) {
+	rows, err := d.db.Query(sqlStmt, args...)
 	if err != nil {
 		return nil, err
 	}

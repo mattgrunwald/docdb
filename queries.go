@@ -1,7 +1,6 @@
 package docdb
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 
@@ -14,14 +13,14 @@ func (d *DocDB) Insert(file *os.File) (*Doc, error) {
 	doc := d.newDoc()
 	doc.Name = filepath.Base(file.Name())
 
-	sqlStmt := fmt.Sprintf(
-		`INSERT INTO 
+	res, err := d.db.Exec(`
+		INSERT INTO 
 			docs
 			(name, created_at, updated_at)
 		VALUES
-			('%s', datetime('now'), datetime('now'));`,
-		doc.Name)
-	res, err := d.db.Exec(sqlStmt)
+			(?, datetime('now'), datetime('now'));`,
+		doc.Name,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -43,14 +42,14 @@ func (d *DocDB) Insert(file *os.File) (*Doc, error) {
 // Update a file
 func (d *DocDB) Update(id int, file *os.File) (*Doc, error) {
 	fileName := filepath.Base(file.Name())
-	sqlStmt := fmt.Sprintf(`
+	_, err := d.db.Exec(`
 		UPDATE docs 
 		SET 
-			name = '%s',
+			name = ?,
 			updated_at = datetime('now')
-		WHERE id = '%d';`,
-		fileName, id)
-	_, err := d.db.Exec(sqlStmt)
+		WHERE id = ?;`,
+		fileName, id,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -71,62 +70,70 @@ func (d *DocDB) Update(id int, file *os.File) (*Doc, error) {
 
 // Find on file by its ID
 func (d *DocDB) FindOne(id int) (*Doc, error) {
-	sqlStmt := fmt.Sprintf(`
+	doc := d.newDoc()
+	err := d.db.QueryRow(`
 		SELECT id, name, created_at, updated_at 
 		FROM docs 
-		WHERE id = %d 
-		LIMIT 1;`,
+		WHERE id = ?;`,
 		id,
-	)
-	rows, err := d.db.Query(sqlStmt)
+	).Scan(&doc.ID, &doc.Name, &doc.CreatedAt, &doc.UpdatedAt)
 	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	found := rows.Next()
-	if !found {
-		return nil, fmt.Errorf("Row with id %d not found", id)
-	}
-	doc := d.newDoc()
-	if err = rows.Scan(&doc.ID, &doc.Name, &doc.CreatedAt, &doc.UpdatedAt); err != nil {
 		return nil, err
 	}
 	return &doc, nil
 }
 
 // Find many files. Useful for pagination.
-func (d *DocDB) FindMany(count int, offset int, orderCol col.DocCol, order order.Order) ([]*Doc, error) {
-	sqlStmt := fmt.Sprintf(`
+func (d *DocDB) FindMany(count int, offset int, orderCol col.DocCol, ord order.Order) ([]*Doc, error) {
+	if ord == order.ASC {
+		return d.find(`
 		SELECT 
 			id, name, created_at, updated_at
 		FROM docs 
-		ORDER BY %s %s
-		LIMIT %d
-		OFFSET %d;`,
-		orderCol, order, count, offset,
+		ORDER BY $1 ASC
+		LIMIT $2
+		OFFSET $3;`,
+			orderCol, count, offset)
+	}
+
+	return d.find(`
+		SELECT 
+			id, name, created_at, updated_at
+		FROM docs 
+		ORDER BY $1 DESC
+		LIMIT $2
+		OFFSET $3;`,
+		orderCol, count, offset,
 	)
-	return d.find(sqlStmt)
+
 }
 
 // Find all files.
-func (d *DocDB) FindAll(orderCol col.DocCol, order order.Order) ([]*Doc, error) {
-	sqlStmt := fmt.Sprintf(`
+func (d *DocDB) FindAll(orderCol col.DocCol, ord order.Order) ([]*Doc, error) {
+
+	if ord == order.ASC {
+		return d.find(`
+			SELECT 
+				id, name, created_at, updated_at 
+			FROM docs
+			ORDER BY $1 ASC;`,
+			orderCol,
+		)
+	}
+	return d.find(`
 		SELECT 
 			id, name, created_at, updated_at 
 		FROM docs
-		ORDER BY %s %s;`,
-		orderCol, order,
-	)
-	return d.find(sqlStmt)
+		ORDER BY $1 DESC;`,
+		orderCol)
 }
 
 func (d *DocDB) Delete(id int) error {
-	sqlStmt := fmt.Sprintf(`
+	_, err := d.db.Exec(`
 		DELETE 
 		FROM docs 
-		WHERE id = %d;`,
+		WHERE id = ?;`,
 		id,
 	)
-	_, err := d.db.Exec(sqlStmt)
 	return err
 }
