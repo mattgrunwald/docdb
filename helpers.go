@@ -7,37 +7,34 @@ import (
 	"strconv"
 )
 
-func (d *DocDB) filePath(id int, name string) string {
-	return filepath.Join(d.dirPath(id), name)
-}
-
-func (d *DocDB) dirPath(id int) string {
-	return filepath.Join(d.filesPath, strconv.Itoa(id))
-}
-
-func (d *DocDB) docToFile(doc *Doc) (*os.File, error) {
-	return os.Open(d.filePath(doc.ID, doc.Name))
-}
-
-func (d *DocDB) docsToFiles(docs []*Doc) ([]*os.File, error) {
-	files := []*os.File{}
-	for _, doc := range docs {
-		file, err := d.docToFile(doc)
-		if err != nil {
-			return nil, err
-		}
-		files = append(files, file)
+func (d *DocDB) newDoc() Doc {
+	return Doc{
+		filesPath: d.filesPath,
 	}
-	return files, nil
 }
 
-func (d *DocDB) writeFile(id int, file *os.File) error {
-	name := filepath.Base(file.Name())
-	err := os.Mkdir(d.dirPath(id), os.ModePerm)
+// Path to docfile
+func (d *Doc) filePath() string {
+	return filepath.Join(d.dirPath(), d.Name)
+}
+
+// Path to directory where doc file is stored
+func (d *Doc) dirPath() string {
+	return filepath.Join(d.filesPath, strconv.Itoa(d.ID))
+}
+
+// Open Doc as a file
+func (d *Doc) Open(doc *Doc) (*os.File, error) {
+	return os.Open(d.filePath())
+}
+
+// Copies `file` to `<filesPath>/<id>/<filename>`
+func (d *Doc) writeFile(file *os.File) error {
+	err := os.Mkdir(d.dirPath(), os.ModePerm)
 	if err != nil {
 		return err
 	}
-	dest, err := os.Create(d.filePath(id, name))
+	dest, err := os.Create(d.filePath())
 	if err != nil {
 		return err
 	}
@@ -45,6 +42,7 @@ func (d *DocDB) writeFile(id int, file *os.File) error {
 	return err
 }
 
+// Executes a `query` and parses the result as a slice of `Doc`s
 func (d *DocDB) find(sqlStmt string) ([]*Doc, error) {
 	rows, err := d.db.Query(sqlStmt)
 	if err != nil {
@@ -54,11 +52,8 @@ func (d *DocDB) find(sqlStmt string) ([]*Doc, error) {
 
 	docs := []*Doc{}
 	for rows.Next() {
-		var doc Doc
+		doc := d.newDoc()
 		if err := rows.Scan(&doc.ID, &doc.Name, &doc.CreatedAt, &doc.UpdatedAt); err != nil {
-			return nil, err
-		}
-		if err != nil {
 			return nil, err
 		}
 		docs = append(docs, &doc)

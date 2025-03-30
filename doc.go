@@ -9,5 +9,5 @@
 //	// Retrieve that file using its ID
 //	file, err := db.FindOne(doc.ID)
 //	// Get 5 files sorted alphabetically by their name
-//	files, err := db.FindMany(5, 0, DocCols.Name, true)
+//	files, err := db.FindMany(5, 0, col.Name, true)
 package docdb

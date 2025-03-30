@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/mattgrunwald/docdb/col"
+	"github.com/mattgrunwald/docdb/order"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -135,7 +137,7 @@ func Test_findOne(t *testing.T) {
 		defer tearDownTest(t)
 
 		// test case
-		doc, err := db.findOne(0)
+		doc, err := db.FindOne(0)
 		// checks
 		assert.Nil(t, doc)
 		assert.NotNil(t, err)
@@ -153,7 +155,7 @@ func Test_findOne(t *testing.T) {
 		docB, _ := db.Insert(fileB)
 
 		// test case
-		doc, err := db.findOne(docB.ID)
+		doc, err := db.FindOne(docB.ID)
 		if err != nil {
 			t.Logf("findOne failed: %q\n", err)
 			t.Fail()
@@ -170,7 +172,7 @@ func Test_FindMany(t *testing.T) {
 		db := setUpTest(t)
 		defer tearDownTest(t)
 
-		docs, err := db.findMany(2, 0, DocCols.UpdatedAt, true)
+		docs, err := db.FindMany(2, 0, col.UpdatedAt, order.ASC)
 		if err != nil {
 			t.Logf("findMany failed: %q\n", err)
 			t.Fail()
@@ -193,7 +195,7 @@ func Test_FindMany(t *testing.T) {
 		_, _ = db.Insert(fileC)
 
 		// test case
-		docs, err := db.findMany(2, 0, DocCols.ID, true)
+		docs, err := db.FindMany(2, 0, col.ID, order.ASC)
 		if err != nil {
 			t.Logf("findMany failed: %q\n", err)
 			t.Fail()
@@ -212,7 +214,7 @@ func Test_FindAll(t *testing.T) {
 		db := setUpTest(t)
 		defer tearDownTest(t)
 
-		docs, err := db.findAll(DocCols.CreatedAt, true)
+		docs, err := db.FindAll(col.CreatedAt, order.ASC)
 		if err != nil {
 			t.Logf("findMany failed: %q\n", err)
 			t.Fail()
@@ -235,7 +237,7 @@ func Test_FindAll(t *testing.T) {
 		docC, _ := db.Insert(fileC)
 
 		// test case
-		docs, err := db.findAll(DocCols.Name, false)
+		docs, err := db.FindAll(col.Name, order.DESC)
 		if err != nil {
 			t.Logf("findMany failed: %q\n", err)
 			t.Fail()
@@ -268,7 +270,7 @@ func Test_Delete(t *testing.T) {
 	}
 
 	//checks
-	docs, _ := db.findAll(DocCols.Name, true)
+	docs, _ := db.FindAll(col.Name, order.ASC)
 	assert.Equal(t, 1, len(docs))
 	compareDocs(t, docB, docs[0])
 

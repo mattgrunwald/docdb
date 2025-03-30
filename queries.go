@@ -4,12 +4,16 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/mattgrunwald/docdb/col"
+	"github.com/mattgrunwald/docdb/order"
 )
 
+// Insert a file
 func (d *DocDB) Insert(file *os.File) (*Doc, error) {
-	doc := Doc{
-		Name: filepath.Base(file.Name()),
-	}
+	doc := d.newDoc()
+	doc.Name = filepath.Base(file.Name())
+
 	sqlStmt := fmt.Sprintf(
 		`INSERT INTO 
 			docs
@@ -25,11 +29,15 @@ func (d *DocDB) Insert(file *os.File) (*Doc, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = d.writeFile(int(id), file)
+	insertedDoc, err := d.FindOne(int(id))
 	if err != nil {
 		return nil, err
 	}
-	return d.findOne(int(id))
+	err = insertedDoc.writeFile(file)
+	if err != nil {
+		return nil, err
+	}
+	return insertedDoc, nil
 }
 
 // Update a file
@@ -46,27 +54,23 @@ func (d *DocDB) Update(id int, file *os.File) (*Doc, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = os.RemoveAll(d.dirPath(id))
+	doc, err := d.FindOne(id)
 	if err != nil {
 		return nil, err
 	}
-	err = d.writeFile(int(id), file)
+	err = os.RemoveAll(doc.dirPath())
 	if err != nil {
 		return nil, err
 	}
-	return d.findOne(id)
+	err = doc.writeFile(file)
+	if err != nil {
+		return nil, err
+	}
+	return doc, nil
 }
 
 // Find on file by its ID
-func (d *DocDB) FindOne(id int) (*os.File, error) {
-	doc, err := d.findOne(id)
-	if err != nil {
-		return nil, err
-	}
-	return d.docToFile(doc)
-}
-
-func (d *DocDB) findOne(id int) (*Doc, error) {
+func (d *DocDB) FindOne(id int) (*Doc, error) {
 	sqlStmt := fmt.Sprintf(`
 		SELECT id, name, created_at, updated_at 
 		FROM docs 
@@ -83,7 +87,7 @@ func (d *DocDB) findOne(id int) (*Doc, error) {
 	if !found {
 		return nil, fmt.Errorf("Row with id %d not found", id)
 	}
-	var doc Doc
+	doc := d.newDoc()
 	if err = rows.Scan(&doc.ID, &doc.Name, &doc.CreatedAt, &doc.UpdatedAt); err != nil {
 		return nil, err
 	}
@@ -91,20 +95,7 @@ func (d *DocDB) findOne(id int) (*Doc, error) {
 }
 
 // Find many files. Useful for pagination.
-// Use `DocCols` to select the right `ColName`
-func (d *DocDB) FindMany(count int, offset int, orderCol ColName, ascending bool) ([]*os.File, error) {
-	docs, err := d.findMany(count, offset, orderCol, ascending)
-	if err != nil {
-		return nil, err
-	}
-	return d.docsToFiles(docs)
-}
-
-func (d *DocDB) findMany(count int, offset int, orderCol ColName, ascending bool) ([]*Doc, error) {
-	order := "DESC"
-	if ascending {
-		order = "ASC"
-	}
+func (d *DocDB) FindMany(count int, offset int, orderCol col.DocCol, order order.Order) ([]*Doc, error) {
 	sqlStmt := fmt.Sprintf(`
 		SELECT 
 			id, name, created_at, updated_at
@@ -118,20 +109,7 @@ func (d *DocDB) findMany(count int, offset int, orderCol ColName, ascending bool
 }
 
 // Find all files.
-// Use `DocCols` to select the right `ColName`
-func (d *DocDB) FindAll(orderCol ColName, ascending bool) ([]*os.File, error) {
-	docs, err := d.findAll(orderCol, ascending)
-	if err != nil {
-		return nil, err
-	}
-	return d.docsToFiles(docs)
-}
-
-func (d *DocDB) findAll(orderCol ColName, ascending bool) ([]*Doc, error) {
-	order := "DESC"
-	if ascending {
-		order = "ASC"
-	}
+func (d *DocDB) FindAll(orderCol col.DocCol, order order.Order) ([]*Doc, error) {
 	sqlStmt := fmt.Sprintf(`
 		SELECT 
 			id, name, created_at, updated_at 
