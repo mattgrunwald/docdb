@@ -1,2 +1,3 @@
 test_db_files
 *.db
+coverage

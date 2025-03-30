@@ -1,6 +1,9 @@
-# `docdb`
+# DocDB
 
-Local document database for native apps.
+![testing](https://github.com/mattgrunwald/docdb/actions/workflows/test.yml/badge.svg)
+[![codecov](https://codecov.io/github/mattgrunwald/docdb/branch/main/graph/badge.svg)](https://codecov.io/github/mattgrunwald/docdb)
+
+Local document database for native apps. Powered by sqlite.
 
 ## Initialization
 
