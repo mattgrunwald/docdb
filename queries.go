@@ -125,6 +125,18 @@ func (d *DocDB) FindAll(orderCol col.DocCol, ord order.Order) ([]*Doc, error) {
 		orderCol)
 }
 
+// Find files with similar names
+func (d *DocDB) FindLike(term string) ([]*Doc, error) {
+	wildcardTerm := "%" + term + "%"
+	return d.find(`
+			SELECT 
+				id, name, created_at, updated_at 
+			FROM docs
+			WHERE name LIKE ?;`,
+		wildcardTerm,
+	)
+}
+
 func (d *DocDB) Delete(id int) error {
 	_, err := d.db.Exec(`
 		DELETE 

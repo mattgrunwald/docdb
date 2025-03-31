@@ -3,19 +3,19 @@
 ![testing](https://github.com/mattgrunwald/docdb/actions/workflows/test.yml/badge.svg)
 [![codecov](https://codecov.io/github/mattgrunwald/docdb/graph/badge.svg?token=VT6LQONNNP)](https://codecov.io/github/mattgrunwald/docdb)
 
-Local document database for native apps. Powered by sqlite.
+Local document database for native apps. Powered by SQLite.
 
 ## Initialization
 
-First, you'll need to instantiate your database and DB connection using `New`
+First, you'll need to open and connect to the database using `New`
 
 ```go
 db := docdb.New("./app.db", "./db_files")
 ```
 
-You need to provide the location for the database file (`./app.db`) as well as the location of the directory that will hold the files (`./db_files`). You do not have to create either, just specify their name and location.
+You need to provide the location for the database file (`./app.db`) as well as the location of the directory that will hold the files (`./db_files`). You do not have to create either, just specify their paths.
 
-Docdb stores files in a directory outside of the DB file so that these stored files can be opened and edited as they are without the need to use temporary files.
+Docdb stores files in a directory outside of the DB file so that these stored files can be opened and edited without the need for temporary files.
 
 ## Using `Doc`s
 
@@ -62,6 +62,15 @@ Retrieve all `Doc`s in a specific order
 ```go
 // gets 5 documents with no offset ordered by creation date in descending order.
 docs, err := db.FindAll(col.CreatedAt, order.DESC)
+```
+
+### Find Like
+
+Retrieve all `Doc`s whose `Name` is similar to the provided search `term`
+
+```go
+// returns all documents that have ".log" in their names.
+docs, err := db.FindLike(".log")
 ```
 
 ### Delete

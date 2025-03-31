@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNew(t *testing.T) {
+func Test_New(t *testing.T) {
 	filesPath := "testfiles"
 	dbFile := "testdb"
 	_, err := os.Stat(filesPath)

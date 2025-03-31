@@ -22,7 +22,7 @@ func openTestFile(t *testing.T, fileName string) *os.File {
 	return file
 }
 
-func setUpTest(t *testing.T) (docdb.IDocDB, string) {
+func setUpTest(t *testing.T) (*docdb.DocDB, string) {
 	t.Helper()
 	dbDir := t.TempDir()
 	dbFile, _ := os.CreateTemp(dbDir, "")
@@ -232,7 +232,7 @@ func Test_FindAll(t *testing.T) {
 			// test case
 			docs, err := db.FindAll(col.Name, order.ASC)
 			if err != nil {
-				t.Logf("findMany failed: %q\n", err)
+				t.Logf("FindAll failed: %q\n", err)
 				t.Fail()
 			}
 
@@ -247,7 +247,7 @@ func Test_FindAll(t *testing.T) {
 			// test case
 			docs, err := db.FindAll(col.Name, order.DESC)
 			if err != nil {
-				t.Logf("findMany failed: %q\n", err)
+				t.Logf("FindAll failed: %q\n", err)
 				t.Fail()
 			}
 
@@ -258,6 +258,44 @@ func Test_FindAll(t *testing.T) {
 			compareDocs(t, docA, docs[0])
 		})
 
+	})
+}
+
+func Test_FindLike(t *testing.T) {
+	// setup
+	db, _ := setUpTest(t)
+	fileA := openTestFile(t, "a.txt")
+	fileB := openTestFile(t, "b.txt")
+	fileC := openTestFile(t, "c.txt")
+	defer fileA.Close()
+	defer fileB.Close()
+	defer fileC.Close()
+	docA, _ := db.Insert(fileA)
+	docB, _ := db.Insert(fileB)
+	docC, _ := db.Insert(fileC)
+
+	t.Run("a", func(t *testing.T) {
+		docs, err := db.FindLike("a")
+		if err != nil {
+			t.Logf("FindLike failed: %q\n", err)
+			t.Fail()
+		}
+
+		assert.Equal(t, 1, len(docs))
+		assert.Equal(t, docA.Name, docs[0].Name)
+	})
+
+	t.Run(".txt", func(t *testing.T) {
+		docs, err := db.FindLike(".txt")
+		if err != nil {
+			t.Logf("FindLike failed: %q\n", err)
+			t.Fail()
+		}
+
+		assert.Equal(t, 3, len(docs))
+		assert.Equal(t, docA.Name, docs[0].Name)
+		assert.Equal(t, docB.Name, docs[1].Name)
+		assert.Equal(t, docC.Name, docs[2].Name)
 	})
 }
 
