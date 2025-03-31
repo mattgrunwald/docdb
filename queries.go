@@ -24,10 +24,7 @@ func (d *DocDB) Insert(file *os.File) (*Doc, error) {
 	if err != nil {
 		return nil, err
 	}
-	id, err := res.LastInsertId()
-	if err != nil {
-		return nil, err
-	}
+	id, _ := res.LastInsertId()
 	insertedDoc, err := d.FindOne(int(id))
 	if err != nil {
 		return nil, err
